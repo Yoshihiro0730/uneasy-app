@@ -1,11 +1,8 @@
-import React from 'react';
-import logo from './logo.svg';
 import './App.css';
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
 
 import Header from './components/Header';
 import UserForm from './components/UserForm';
+import ReserveCalendar from './components/ReserveCalendar';
 
 function App() {
   return (
@@ -14,7 +11,7 @@ function App() {
       <UserForm formType="regist" />
       <UserForm formType="reserve" />
       <UserForm formType="confirm" />
-      {/* <FullCalendar plugins={[dayGridPlugin]} initialView="dayGridMonth" /> */}
+      <ReserveCalendar />
     </div>
   );
 }
