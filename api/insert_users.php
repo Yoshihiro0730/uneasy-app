@@ -21,7 +21,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
     // パラメータセット
     $params = array(
         ':first_name' => $first_name,
-        'last_name' => $last_name,
+        ':last_name' => $last_name,
         ':email' => $email
     );
 

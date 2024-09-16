@@ -9,8 +9,8 @@ function App() {
     <div>
       <Header />
       <UserForm formType="regist" />
-      <UserForm formType="reserve" />
-      <UserForm formType="confirm" />
+      {/* <UserForm formType="reserve" /> */}
+      {/* <UserForm formType="confirm" /> */}
       <ReserveCalendar />
     </div>
   );
