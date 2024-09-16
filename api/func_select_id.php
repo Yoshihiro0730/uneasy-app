@@ -9,17 +9,29 @@ error_reporting(E_ALL);
 
 require_once 'db_connect.php';
 
-//クラスの生成
-$obj = new db_connect();
-if($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $year_month = $_GET['currentDate'];
-    $sql = 'SELECT reserve_id, user_id, date FROM T_reserve WHERE DATE_FORMAT(date, "%Y-%m") = :year_month';
+function func_select_id($first_name, $last_name, $email) {
+    //クラスの生成
+    $obj = new db_connect();
+    $sql = 'SELECT 
+                user_id 
+            FROM 
+                T_users 
+            WHERE
+                first_name=:first_name
+            AND
+                last_name=:last_name
+            AND 
+                mail=:email
+            ';
     try{
-        $params = [':year_month' => $year_month];
+        $params = [':first_name' => $first_name, ':last_name' => $last_name, ':email' => $email];
         $result = $obj->select($sql, $params);
-        echo json_encode($result);
+        return $result;
     } catch(Exception $e){
         echo "データ検索に失敗しました。" . $e->getMessage();
     }
 }
+
+
+
 ?>

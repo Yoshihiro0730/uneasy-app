@@ -31,7 +31,9 @@ interface FormData {
 
 interface UserReserve {
     user_id: number;
-    date: string;
+    date?: {
+        date: string;
+    }[];
 }
 
 const UserForm: React.FC<FormProps> = ({ formType }) => {
@@ -52,13 +54,16 @@ const UserForm: React.FC<FormProps> = ({ formType }) => {
     });
     // 確認・変更・取消フォームのデータセット
     const [confirmData, setConfirmData] = useState<FormData>({
-        userId: ""
+        firstName: "",
+        lastName: "",
+        email: ""
     });
 
     // 予約確認トグル用
     const [isOpen, setIsOpen] = useState(false);
     // 予約情報格納用
-    const [reservations, setReservations] = useState<UserReserve[]>([]);
+    const [reservations, setReservations] = useState<UserReserve | null>(null);;
+    const [isResist, setIsResist] = useState(false);
 
     const currentYear = new Date().getFullYear();
     const years = Array.from({length: 4}, (_, i) => currentYear + i);
@@ -152,28 +157,38 @@ const UserForm: React.FC<FormProps> = ({ formType }) => {
     }
 
     // お客様番号検索クエリ
-    const onUserData = async(confirmData: any) => {
+    const onUserData = async(event: FormEvent<HTMLFormElement> | MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+
         try {
             const obj = await axios.get(users_endpoint, {
                 params: {
-                    userId: confirmData.userId
+                    first_name: confirmData.firstName,
+                    last_name: confirmData.lastName,
+                    email: confirmData.email
                 }
             });
-            // console.log(confirmData.userId);
+    
+            console.log("検索結果:", obj.data);
             setReservations(obj.data);
-            console.log("検索に成功しました。", obj.data);
             setIsOpen(true);
+            setConfirmData({
+                firstName: "",
+                lastName: "",
+                email: ""
+            });
         } catch (error) {
-            console.log("お客様番号が見つかりませんでした。");
+            console.log("データ検索に失敗しました。", error);
+            setReservations(null);
         }
     }
 
     // 再レンダリング時に予約確認リストを非表示
     useEffect(() => {
         setIsOpen(false);
-        setConfirmData({
-            userId : ""
-        })
+        // setConfirmData({
+        //     userId : ""
+        // })
     }, [])
 
     // 呼び出し元のパラメータ指定によってフォームの出しわけ
@@ -182,50 +197,131 @@ const UserForm: React.FC<FormProps> = ({ formType }) => {
             // 登録フォーム
             case "regist":
                 return (
-                    <div className="w-4/5 mt-2 mb-2 ml-auto mr-auto flex flex-col">
-                        <Typography variant="h4" component="div" sx={{ flexGrow: 1 }}>始めての方はこちら</Typography>
-                        <Box
-                            component="form"
-                            noValidate
-                            autoComplete="off"
-                            sx={{ boxShadow: 1 }}
-                        >
-                            <div className="m-3">
-                                <Typography variant="h6" component="div">お名前</Typography>
-                                <TextField 
-                                    id="first_name"
-                                    name="firstName"
-                                    value={registData.firstName} 
-                                    label="性" 
-                                    variant="outlined" 
-                                    onChange={resistHandler}
-                                    sx={{ m:2 }} 
-                                />
-                                <TextField 
-                                    id="last_name" 
-                                    name="lastName"
-                                    value={registData.lastName}
-                                    label="名" 
-                                    variant="outlined" 
-                                    onChange={resistHandler}
-                                    sx={{ m:2 }}
-                                />
-                            </div>
-                            <div className="m-3">
-                                <Typography variant="h6" component="div">email</Typography>
-                                <TextField 
-                                    id="email"
-                                    name="email"
-                                    value={registData.email} 
-                                    label="メールアドレス" 
-                                    variant="outlined" 
-                                    onChange={resistHandler}
-                                    sx={{ m:2, minWidth: "80%" }}
-                                />
-                            </div>
-                            <FormButton element={"登録"} onClick={onResist} />
-                        </Box>
-                    </div>
+                    isResist ? (
+                        <div className="w-4/5 mx-auto my-10 flex flex-col">
+                            <Typography variant="h4" component="div" sx={{ flexGrow: 1 }}>始めての方はこちら</Typography>
+                            <Box
+                                component="form"
+                                noValidate
+                                autoComplete="off"
+                                sx={{ boxShadow: 1 }}
+                            >
+                                <div className="m-3">
+                                    <Typography variant="h6" component="div">お名前</Typography>
+                                    <TextField 
+                                        id="first_name"
+                                        name="firstName"
+                                        value={registData.firstName} 
+                                        label="性" 
+                                        variant="outlined" 
+                                        onChange={resistHandler}
+                                        sx={{ m:2 }} 
+                                    />
+                                    <TextField 
+                                        id="last_name" 
+                                        name="lastName"
+                                        value={registData.lastName}
+                                        label="名" 
+                                        variant="outlined" 
+                                        onChange={resistHandler}
+                                        sx={{ m:2 }}
+                                    />
+                                </div>
+                                <div className="m-3">
+                                    <Typography variant="h6" component="div">email</Typography>
+                                    <TextField 
+                                        id="email"
+                                        name="email"
+                                        value={registData.email} 
+                                        label="メールアドレス" 
+                                        variant="outlined" 
+                                        onChange={resistHandler}
+                                        sx={{ m:2, minWidth: "80%" }}
+                                    />
+                                </div>
+                                <div className="text-center">
+                                    <span onClick={() => setIsResist(!isResist)} className="underline hover:text-blue-700 cursor-pointer">
+                                        {isResist ? "お客様番号確認" : "お客様情報登録"}
+                                    </span>
+                                </div>
+                                <FormButton element={"登録"} onClick={onResist} />
+                            </Box>
+                        </div>    
+                    ) : (
+                        <div className="w-4/5 mt-2 mb-2 ml-auto mr-auto flex flex-col">
+                            <Typography variant="h4" component="div" sx={{ flexGrow: 1 }}>お客様番号の確認</Typography>
+                            <Box
+                                component="form"
+                                noValidate
+                                autoComplete="off"
+                                sx={{ boxShadow: 1 }}
+                            >
+                                <div className="m-3">
+                                    <Typography variant="h6" component="div">お名前</Typography>
+                                    <TextField 
+                                        id="first_name"
+                                        name="firstName"
+                                        value={confirmData.firstName} 
+                                        label="性" 
+                                        variant="outlined" 
+                                        onChange={confirmHandler}
+                                        sx={{ m:2 }} 
+                                    />
+                                    <TextField 
+                                        id="last_name" 
+                                        name="lastName"
+                                        value={confirmData.lastName}
+                                        label="名" 
+                                        variant="outlined" 
+                                        onChange={confirmHandler}
+                                        sx={{ m:2 }}
+                                    />
+                                </div>
+                                <div className="m-3">
+                                    <Typography variant="h6" component="div">email</Typography>
+                                    <TextField 
+                                        id="email"
+                                        name="email"
+                                        value={confirmData.email} 
+                                        label="メールアドレス" 
+                                        variant="outlined" 
+                                        onChange={confirmHandler}
+                                        sx={{ m:2, minWidth: "80%" }}
+                                    />
+                                </div>
+                                <div className="text-center">
+                                    <span onClick={() => setIsResist(!isResist)} className="underline hover:text-blue-700 cursor-pointer">
+                                        {isResist ? "お客様番号確認" : "お客様情報登録"}
+                                    </span>
+                                </div>
+                                <FormButton element={"確認"} onClick={onUserData} />
+                                
+                                {isOpen && reservations ? (
+                                    <>
+                                        <div className="text-center mb-4">
+                                            <Typography variant="h6">お客様番号: {reservations.user_id}</Typography>
+                                            {reservations.date && reservations.date.length > 0 ? (
+                                                reservations.date.map((reservation, index) => (
+                                                    <Card key={index} sx={{ width:"80%", m: "auto" }}>
+                                                        <CardContent>
+                                                            <Typography variant="h6" component="div">予約日時</Typography>
+                                                            <Typography color="text.secondary">
+                                                                {new Date(reservation.date).toLocaleString()}
+                                                            </Typography>
+                                                        </CardContent>
+                                                    </Card>
+                                                ))
+                                            ) : (
+                                                <div>予約情報はありません</div>
+                                            )}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <></>
+                                )}
+                            </Box>
+                        </div>    
+                    )
                 )
             // 予約フォーム
             case "reserve":
@@ -357,7 +453,7 @@ const UserForm: React.FC<FormProps> = ({ formType }) => {
                                         sx={{ m:2 }} 
                                     />  
                                 </div>
-                            {isOpen ? 
+                            {/* {isOpen ? 
                                 reservations.map((reservation: UserReserve, index) => (
                                     <Card key={index} sx={{ width:"80%", m: "auto" }}>
                                         <CardContent>
@@ -371,7 +467,7 @@ const UserForm: React.FC<FormProps> = ({ formType }) => {
                                 :
                                 <></>
                             }
-                            <FormButton element={"確認"} onClick={() => onUserData(confirmData)} />
+                            <FormButton element={"確認"} onClick={() => onUserData(confirmData)} /> */}
                             </Box>
                         </div>
                     )

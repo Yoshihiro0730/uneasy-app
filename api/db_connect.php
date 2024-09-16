@@ -69,12 +69,34 @@ class db_connect{
     }
   }
 
+  public function update($sql, $params) {
+    $stmt = $this->dbh->prepare($sql);
+    $status = $stmt->execute($params);
+    if($status == false) {
+      $error = $stmt->errorInfo();
+      exit("SQLError:".$error[2]);
+    } else {
+      return $stmt->rowCount();
+    }
+  }
+
+  public function delete($sql, $params){
+    $stmt = $this->dbh->prepare($sql);
+    $status = $stmt->execute($params);
+    if($status == false){
+      $error = $stmt->errorInfo();
+      exit("SQLError:".$error);
+    } else{
+      return $stmt->rowCount();
+    }
+  }
+
   private function getPDO($value) {
     if (is_int($value)) {
         return PDO::PARAM_INT;
     } else {
         return PDO::PARAM_STR;
     }
-}
+  }
 }
 ?>
