@@ -248,7 +248,7 @@ const UserForm: React.FC<FormProps> = ({ formType }) => {
                             </Box>
                         </div>    
                     ) : (
-                        <div className="w-4/5 mt-2 mb-2 ml-auto mr-auto flex flex-col">
+                        <div className="w-4/5 mx-auto my-10 flex flex-col">
                             <Typography variant="h4" component="div" sx={{ flexGrow: 1 }}>お客様番号の確認</Typography>
                             <Box
                                 component="form"
