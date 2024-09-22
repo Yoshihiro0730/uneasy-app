@@ -9,29 +9,27 @@ error_reporting(E_ALL);
 
 require_once 'db_connect.php';
 
+function debug_log($message) {
+    error_log($message);
+}
+
 //クラスの生成
 $obj = new db_connect();
 if($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $year_month = $_GET['currentDate'];
+    $year = $_GET['year'];
+    $month = $_GET['month'];
+    $day = $_GET['day'];
+    echo "Received parameters: Year: $year, Month: $month, Day: $day";
+    $formatted_date = sprintf("%04d-%02d-%02d", $year, $month, $day);
+    debug_log("バックエンド: " . $formatted_date);
     $sql = 'SELECT * 
                 FROM 
                     T_RESERVE 
                 WHERE 
-                    DATE_FORMAT(date, "%Y-%m") = :year_month
-                AND(
-                    T_1 IS NOT NULL OR
-                    T_2 IS NOT NULL OR
-                    T_3 IS NOT NULL OR
-                    T_4 IS NOT NULL OR
-                    T_5 IS NOT NULL OR
-                    T_6 IS NOT NULL OR
-                    T_7 IS NOT NULL OR
-                    T_8 IS NOT NULL OR
-                    T_9 IS NOT NULL
-                )
+                    DATE(date) = :formatted_date
     ';
     try{
-        $params = [':year_month' => $year_month];
+        $params = [':formatted_date' => $formatted_date];
         $result = $obj->select($sql, $params);
         echo json_encode($result);
     } catch(Exception $e){

@@ -1,0 +1,10 @@
+CREATE TABLE T_USERS (
+    user_id int(12) NOT NULL AUTO_INCREMENT,
+    first_name VARCHAR(12) COLLATE utf8_unicode_ci NOT NULL,
+    last_name VARCHAR(12) COLLATE utf8_unicode_ci NOT NULL,
+    email VARCHAR(256) COLLATE utf8_unicode_ci NOT NULL,
+    upw VARCHAR(256) COLLATE utf8_unicode_ci NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci

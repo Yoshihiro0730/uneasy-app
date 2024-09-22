@@ -1,4 +1,4 @@
-import { useCallback, ChangeEvent, FormEvent, MouseEvent } from 'react';
+import { useCallback, ChangeEvent, FormEvent, MouseEvent, useMemo } from 'react';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -10,11 +10,11 @@ import { EventClickArg } from '@fullcalendar/core';
 import Modal from '@mui/material/Modal';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import FormButton from "./FormButton";
+import { useUser } from './UserContext';
 
 interface ResponceProps {
     reserve_id: number;
@@ -42,6 +42,7 @@ interface FormData {
     hour?: string;
     minutes?: string;
     reserveId?:number | string;
+    previousReserve?:string;
 }
 
 // イベントクリック時の型指定
@@ -53,7 +54,24 @@ interface EventContents {
     day?: string;
     hour?: string;
     minutes?: string;
+    previousReserve?:string;
 }
+
+interface ReserveData {
+    year: string;
+    month: string;
+    day: string;
+    hour: string;
+    T_1?: number | null;
+    T_2?: number | null;
+    T_3?: number | null;
+    T_4?: number | null;
+    T_5?: number | null;
+    T_6?: number | null;
+    T_7?: number | null;
+    T_8?: number | null;
+    T_9?: number | null;
+  }
 
 const style = {
     position: 'absolute' as 'absolute',
@@ -68,6 +86,7 @@ const style = {
 };
 
 const ReserveCalendar = () => {
+    const { user } = useUser();
     const [currentDate, setCurrentDate] = useState("");
     const [event, setEvent] = useState<EventProps[]>([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -79,7 +98,7 @@ const ReserveCalendar = () => {
         month: "",
         day: "",
         hour: "",
-        minutes: ""
+        minutes: "00"
     });
     const [updateData, setUpdateData] = useState<FormData>({
         userId: "",
@@ -87,21 +106,19 @@ const ReserveCalendar = () => {
         month: "",
         day: "",
         hour: "",
-        minutes: ""
+        
     });
+    const [apiData, setApiData] = useState<ReserveData | null>(null); 
 
     const currentYear = new Date().getFullYear();
-    const years = Array.from({length: 4}, (_, i) => currentYear + i);
-    const months = Array.from({length: 12}, (_, i) => i + 1);
-    const days = Array.from({length: 31}, (_, i) => i + 1);
-    const hours = Array.from({length: 10}, (_, i) => i + 9);
-    const minutes = [0, 30];
+    const hours =  Array.from({length: 10}, (_, i) => i + 9); 
 
     const ref = useRef<FullCalendar>(null);
     const endpoint = `${process.env.REACT_APP_GET_RESERVE_API_ENDPOINT}`;
     const reserve_endpoint = `${process.env.REACT_APP_RESERVE_API_ENDPOINT}`;
     const update_endpoint = `${process.env.REACT_APP_UPDATE_API_ENDPOINT}`;
     const delete_endpoint = `${process.env.REACT_APP_DELETE_API_ENDPOINT}`;
+    const reserve_date_endpoint = `${process.env.REACT_APP_RESERVE_DATE_API_ENDPOINT}`;
 
     // FullCalendarAPIを用いて表示年月を取得
     const monthHandler = () => {
@@ -127,20 +144,30 @@ const ReserveCalendar = () => {
             });
 
             // カレンダーに予約情報を記載する
-            const calendarEvent = res.data.map((item: ResponceProps) => {
-                const [date, time] = item.date.split(' ');
-                return {
-                    title: `予約：${time.substring(0, 5)}`,
-                    start: item.date,
-                    allDay: false,
-                    extendedProps: {
-                        reserveId: item.reserve_id,
-                        userId: item.user_id,
-                        date: date,
-                        time: time
-                    }
-                }
-            })
+            const calendarEvent = res.data.flatMap((item: ResponceProps) => {
+                const date = item.date;
+                return Object.entries(item)
+                    .filter(([key, value]) => key.startsWith('T_') && value !== null)
+                    .map(([key, value]) => {
+                        const hour = parseInt(key.substring(2)) + 8; // T_1 は 9時、T_2 は 10時 ...
+                        const startTime = `${hour.toString().padStart(2, '0')}:00`;
+                        const endTime = `${(hour + 1).toString().padStart(2, '0')}:00`;
+                        return {
+                            title: `X(${startTime}-${endTime})`,
+                            start: `${date}T${startTime}`,
+                            end: `${date}T${endTime}`,
+                            allDay: false,
+                            extendedProps: {
+                                reserveId: item.reserve_id,
+                                userId: value,
+                                date: date,
+                                time: `${startTime}-${endTime}`,
+                                startTime: startTime
+                            }
+                        };
+                    });
+            });
+            
             setEvent(calendarEvent);
         } catch(error) {
             console.log("予約情報が取得できませんでした。", error);
@@ -150,21 +177,75 @@ const ReserveCalendar = () => {
     // カレンダーの日付を押下したときのハンドラー
     const handleDateClick = useCallback((arg: DateClickArg) => {
         const clickDate = new Date(arg.date);
-        setReserveData(prexState => ({
-            ...prexState,
+        setReserveData({
             year: clickDate.getFullYear().toString(),
             month: (clickDate.getMonth() + 1).toString().padStart(2, "0"),
             day: clickDate.getDate().toString().padStart(2, '0')
-        }))
+        });
         setIsOpen(true);
 	}, []);
+
+    // 日付押下時に該当年月日の情報をフェッチしてくる
+    // デバッグ用にコメント残しているので、後で削除
+    useEffect(() => {
+        const fetchData = async () => {
+            if (reserveData.year && reserveData.month && reserveData.day) {
+                try {
+                    const res = await axios.get(reserve_date_endpoint, {
+                        params: reserveData
+                    });
+                    // レスポンスデータから不要な文字列を削除
+                    const cleanedData = res.data.replace(/^Received parameters:.*?\[/, '[');
+                    setApiData(JSON.parse(cleanedData));
+                } catch (error) {
+                    console.error('データ取得に失敗しました。:', error);
+                }
+            }
+        };
+        fetchData();
+    }, [reserveData.year, reserveData.month, reserveData.day]);
+
+    const getReservedHours = (apiData: any): { [key: number]: number | null } => {
+        const reservedHours: { [key: number]: number | null } = {};
+        
+        let dataArray;
+        if (typeof apiData === 'string') {
+            // 文字列から JSON 部分を抽出
+            const jsonString = apiData.substring(apiData.indexOf('['));
+            try {
+                dataArray = JSON.parse(jsonString);
+            } catch (error) {
+                console.error('Failed to parse JSON from string:', error);
+                return reservedHours;
+            }
+        } else if (Array.isArray(apiData)) {
+            dataArray = apiData;
+        } else {
+            return reservedHours;
+        }
+    
+        dataArray.forEach((item: ReserveData, index: number) => {
+            for (let i = 1; i <= 9; i++) {
+                const key = `T_${i}` as keyof ReserveData;
+                if (item[key] !== null && item[key] !== undefined && item[key] !== '') {
+                    reservedHours[i + 8] = item[key] as number;
+                }
+            }
+        });
+    
+        return reservedHours;
+    };
+    
+    
+    const reservedHours = useMemo(() => getReservedHours(apiData), [apiData]);
 
     // 予約フォーム入力時のデータ取得
     const reserveHandler = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent) => {
         const { name, value } = event.target;
         setReserveData(prevState => ({
             ...prevState,
-            [name]: value
+            [name]: value,
+            userId: user?.userId
         }))
     }
 
@@ -173,7 +254,8 @@ const ReserveCalendar = () => {
         const { name, value } = event.target;
         setEditingEvent(prevState => ({
             ...prevState,
-            [name]: value
+            [name]: value,
+            userId: user?.userId
         }))
     }
 
@@ -208,20 +290,21 @@ const ReserveCalendar = () => {
     // 予約更新用のハンドラー
     const onUpdate = async(event: FormEvent<HTMLFormElement> | MouseEvent<HTMLButtonElement>) => {
         event.preventDefault();
-        const formData = new FormData();
         if (!editingEvent) {
             console.log("更新するデータがありません。");
             return;
         }
+    
+        const formData = new FormData();
         Object.entries(editingEvent).forEach(([key, value]) => {
-            formData.append(key,value);
+            if (value !== undefined && value !== null) {
+                formData.append(key, value.toString());
+            }
         });
-
+    
         try {
-            const obj = await axios.post(
-                update_endpoint,
-                formData
-            )
+            const response = await axios.post(update_endpoint, formData);
+            console.log("更新レスポンス:", response.data);
             setUpdateData({
                 reserveId: "",
                 userId: "",
@@ -229,14 +312,14 @@ const ReserveCalendar = () => {
                 month: "",
                 day: "",
                 hour: "",
-                minutes: ""
-            })
+                previousReserve: ""
+            });
             alert("更新に成功しました。");
             setIsUpdate(false);
         } catch(error) {
-            console.log("データ更新に失敗しました。", error);
+            console.error("データ更新に失敗しました。", error);
         }
-    }
+    };
 
     // 予約削除ハンドラー
     const onDelete = async(event: FormEvent<HTMLFormElement> | MouseEvent<HTMLButtonElement>) => {
@@ -261,6 +344,7 @@ const ReserveCalendar = () => {
                 delete_endpoint,
                 formData
             );
+            console.log(obj.data);
             alert("削除に成功しました。");
             setIsUpdate(false);
             // getCurrentDate();
@@ -269,29 +353,59 @@ const ReserveCalendar = () => {
         }
     }
 
-    const handleEventClick = useCallback((clickInfo: EventClickArg) => {
+    const handleEventClick = useCallback(async(clickInfo: EventClickArg) => {
         // 選択したイベントを登録したお客様番号と予約日時を取得
         const props = clickInfo.event.extendedProps;
-        const dateTime = new Date(`${props.date}T${props.time}`);
+        const [year, month, day] = props.date.split('-');
+        const hour = props.startTime.split(':')[0];
+        const eventUserId = props.userId as number;
+        console.log(editingEvent);
+
+        // 現在のユーザーIDと比較
+        if (eventUserId !== Number(user?.userId)) {
+            alert("この予約は別のユーザーによって作成されました。編集できません。");
+            return;
+        }
+        const fetchNewData = async () => {
+            try {
+                const params = {
+                    year,
+                    month,
+                    day
+                };
+                const res = await axios.get(reserve_date_endpoint, { params });
+                setApiData(res.data);
+            } catch (error) {
+                console.error('データ取得に失敗しました。:', error);
+            }
+        };
+    
+        await fetchNewData();
+    
         const parseEvent: EventContents = {
             reserveId: props.reserveId as number,
             userId: props.userId as number,
-            year: dateTime.getFullYear().toString(),
-            month: (dateTime.getMonth() + 1).toString().padStart(2, '0'),
-            day: dateTime.getDate().toString().padStart(2, '0'),
-            hour: dateTime.getHours().toString().padStart(2, '0'),
-            minutes: dateTime.getMinutes().toString().padStart(2, '0')
-        }
-        if (parseEvent.minutes === '00') {
-            parseEvent.minutes = '0';
-        }
+            year,
+            month,
+            day,
+            hour,
+            previousReserve: props.startTime
+        };
+        
         setEditingEvent(parseEvent); 
         setIsUpdate(true);
-    }, []);
+    }, [user, reserve_date_endpoint]);
 
+    
     useEffect(() => {
         getCurrentDate();
     }, [currentDate])
+
+    // useEffect(() => {
+    //     const calculatedReservedHours = getReservedHours(apiData);
+    //     console.log('Calculated reservedHours:', calculatedReservedHours);
+    //     setReservedHours(calculatedReservedHours);
+    // }, [apiData]);
 
     return (
        <div className='w-4/5 mx-auto my-10'>
@@ -306,20 +420,19 @@ const ReserveCalendar = () => {
                 datesSet={monthHandler}
                 dateClick={handleDateClick}
                 eventClick={handleEventClick}
+                slotDuration="01:00:00"
+                slotMinTime="09:00:00"
+                slotMaxTime="18:00:00"
                 eventContent={(eventInfo) => {
-                    const userId = eventInfo.event.extendedProps.userId;
-                    let timeText = eventInfo.timeText;
-                    // 時:分で統一して表示できるように変換
-                    if(timeText && timeText.length <= 3){
-                        timeText = timeText.replace('時', ':');
-                        timeText += "00";
-                    }
+                    const { extendedProps } = eventInfo.event;
+                    const userId = extendedProps.userId;
+                    const time = extendedProps.time;                    
                     return (
                         <div className="flex flex-col items-start">
                             <div className="flex items-center">
-                                <div className="w-2 h-2 rounded-full bg-blue-500 mr-1"></div>
+                                <div className="w-2 h-2 rounded-full bg-red-500 mr-1"></div>
                                 <div className="text-sm">
-                                    予約：{timeText}
+                                    ×({time})
                                 </div>
                             </div>
                             <div className="text-xs mt-1">
@@ -342,92 +455,34 @@ const ReserveCalendar = () => {
                 >
                     <div className="m-3">
                         <Typography variant="h6" component="div">お客様番号</Typography>
-                        <TextField 
-                            id="userId"
-                            name="userId"
-                            value={reserveData.userId as number} 
-                            label="お客様番号" 
-                            variant="outlined" 
-                            onChange={reserveHandler}
-                            sx={{ m:2 }} 
-                        />
+                        <Typography variant="h6" component="div">{user?.userId}</Typography>
                     </div>
                     <div className="m-3">
                         <Typography variant="h6" component="div">予約日時</Typography>
-                        <div className="m-2">
-                            <FormControl sx={{ minWidth: "20vw", m: 1 }}>
-                                <InputLabel id="year">年</InputLabel>
+                        <div>
+                            <Typography variant="h6" component="div">{`${reserveData.year}年${reserveData.month}月${reserveData.day}日`}</Typography>
+                            <FormControl sx={{ minWidth: "10vw", m: 1}}>
+                                <InputLabel id="date_hour">時間</InputLabel>
                                 <Select
-                                    labelId="year"
-                                    id="year"
-                                    name="year"
-                                    value={reserveData.year}
-                                    label="年"
+                                    labelId="hour"
+                                    id="hour"
+                                    name="hour"
+                                    value={reserveData.hour || ''}
+                                    label="時"
                                     onChange={reserveHandler}
                                 >
-                                {years.map((year) => (
-                                    <MenuItem key={year} value={year}>{year}</MenuItem>
-                                ))}
-                                </Select>
-                            </FormControl>
-                            <FormControl sx={{ minWidth: "10vw", m: 1 }}>
-                                <InputLabel id="month">月</InputLabel>
-                                <Select
-                                labelId="month"
-                                id="month"
-                                name="month"
-                                value={reserveData.month}
-                                label="月"
-                                onChange={reserveHandler}
-                                >
-                                {months.map((month) => (
-                                    <MenuItem key={month} value={month.toString().padStart(2, "0")}>{month}</MenuItem>
-                                ))}
-                                </Select>
-                            </FormControl>
-                            <FormControl sx={{ minWidth: "10vw", m: 1}}>
-                                <InputLabel id="day">日</InputLabel>
-                                <Select
-                                labelId="day"
-                                id="day"
-                                name="day"
-                                value={reserveData.day}
-                                label="日"
-                                onChange={reserveHandler}
-                                >
-                                {days.map((day) => (
-                                    <MenuItem key={day} value={day.toString().padStart(2, "0")}>{day}</MenuItem>
-                                ))}
-                                </Select>
-                            </FormControl>
-                            <FormControl sx={{ minWidth: "10vw", m: 1}}>
-                                <InputLabel id="hour">時</InputLabel>
-                                <Select
-                                labelId="hour"
-                                id="hour"
-                                name="hour"
-                                value={reserveData.hour}
-                                label="時"
-                                onChange={reserveHandler}
-                                >
-                                {hours.map((hour) => (
-                                    <MenuItem key={hour} value={hour}>{hour}</MenuItem>
-                                ))}
-                                </Select>
-                            </FormControl>
-                            <FormControl sx={{ minWidth: "10vw", m: 1}}>
-                                <InputLabel id="minutes">分</InputLabel>
-                                <Select
-                                labelId="minutes"
-                                id="minutes"
-                                name="minutes"
-                                value={reserveData.minutes}
-                                label="分"
-                                onChange={reserveHandler}
-                                >
-                                {minutes.map((minite) => (
-                                    <MenuItem key={minite} value={minite}>{minite}</MenuItem>
-                                ))}
+                                    {hours.map((hour) => {
+                                        const isReserved = reservedHours[hour] !== undefined;
+                                        return (
+                                            <MenuItem 
+                                                key={hour} 
+                                                value={hour.toString()}
+                                                disabled={isReserved}
+                                            >
+                                                {hour}:00 {isReserved ? '×' : ''}
+                                            </MenuItem>
+                                        );
+                                    })}
                                 </Select>
                             </FormControl>
                         </div>
@@ -450,97 +505,35 @@ const ReserveCalendar = () => {
                 >
                     <div className="m-3">
                         <Typography variant="h6" component="div">お客様番号</Typography>
-                        <TextField 
-                            id="userId"
-                            name="userId"
-                            value={editingEvent?.userId as number} 
-                            label="お客様番号" 
-                            variant="outlined" 
-                            InputProps={{
-                                readOnly: true,
-                            }}
-                            sx={{ m:2 }} 
-                        />
-                        <Typography variant="body2" style={{ color: 'red' }} component="div">
-                            お客様番号のお間違いに十分ご注意ください
-                        </Typography>
+                        <Typography variant="h6" component="div">{user?.userId}</Typography>
                     </div>
                     <div className="m-3">
                         <Typography variant="h6" component="div">予約日時</Typography>
                         <div className="m-2">
                             <FormControl sx={{ minWidth: "20vw", m: 1 }}>
-                                <InputLabel id="year">年</InputLabel>
+                            <InputLabel id="date_hour">時間</InputLabel>
                                 <Select
-                                    labelId="year"
-                                    id="year"
-                                    name="year"
-                                    value={editingEvent?.year}
-                                    label="年"
+                                    labelId="hour"
+                                    id="hour"
+                                    name="hour"
+                                    value={editingEvent?.hour}
+                                    label="時"
                                     onChange={updateHandler}
                                 >
-                                {years.map((year) => (
-                                    <MenuItem key={year} value={year}>{year}</MenuItem>
-                                ))}
-                                </Select>
-                            </FormControl>
-                            <FormControl sx={{ minWidth: "10vw", m: 1 }}>
-                                <InputLabel id="month">月</InputLabel>
-                                <Select
-                                labelId="month"
-                                id="month"
-                                name="month"
-                                value={editingEvent?.month}
-                                label="月"
-                                onChange={updateHandler}
-                                >
-                                {months.map((month) => (
-                                    <MenuItem key={month} value={month.toString().padStart(2, "0")}>{month}</MenuItem>
-                                ))}
-                                </Select>
-                            </FormControl>
-                            <FormControl sx={{ minWidth: "10vw", m: 1}}>
-                                <InputLabel id="day">日</InputLabel>
-                                <Select
-                                labelId="day"
-                                id="day"
-                                name="day"
-                                value={editingEvent?.day}
-                                label="日"
-                                onChange={updateHandler}
-                                >
-                                {days.map((day) => (
-                                    <MenuItem key={day} value={day.toString().padStart(2, "0")}>{day}</MenuItem>
-                                ))}
-                                </Select>
-                            </FormControl>
-                            <FormControl sx={{ minWidth: "10vw", m: 1}}>
-                                <InputLabel id="hour">時</InputLabel>
-                                <Select
-                                labelId="hour"
-                                id="hour"
-                                name="hour"
-                                value={editingEvent?.hour}
-                                label="時"
-                                onChange={updateHandler}
-                                >
-                                {hours.map((hour) => (
-                                    <MenuItem key={hour} value={hour}>{hour}</MenuItem>
-                                ))}
-                                </Select>
-                            </FormControl>
-                            <FormControl sx={{ minWidth: "10vw", m: 1}}>
-                                <InputLabel id="minutes">分</InputLabel>
-                                <Select
-                                labelId="minutes"
-                                id="minutes"
-                                name="minutes"
-                                value={editingEvent?.minutes}
-                                label="分"
-                                onChange={updateHandler}
-                                >
-                                {minutes.map((minite) => (
-                                    <MenuItem key={minite} value={minite}>{minite}</MenuItem>
-                                ))}
+                                    {hours.map((hour) => {
+                                        const isReserved = reservedHours[hour] !== undefined;
+                                        const isOwnReservation = isReserved && reservedHours[hour] === Number(user?.userId);
+                                        return (
+                                            <MenuItem 
+                                                key={hour} 
+                                                value={hour.toString()}
+                                                disabled={isReserved && !isOwnReservation}
+                                            >
+                                                {hour}:00 
+                                                {isReserved ? (isOwnReservation ? '(予約済)' : '×') : ''}
+                                            </MenuItem>
+                                        );
+                                    })}
                                 </Select>
                             </FormControl>
                         </div>

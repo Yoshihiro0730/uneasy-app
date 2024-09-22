@@ -21,17 +21,28 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
     $minutes = $_POST['minutes'];
 
     // 予約日時をdatetime型にするための文字列結合
-    $date_str = $year . "-" . $month . "-" . $day . " " . $hour . ":" . $minutes . ":00";
+    $date_str = $year . "-" . $month . "-" . $day;
     
     // DB登録用にdatetime型に変換
-    $date_datetime = new DateTime($date_str);
-    $formatted_date = $date_datetime->format("Y-m-d H:i:s");
-    $sql = 'INSERT INTO T_reserve (user_id, date) VALUES (:user_id, :formatted_date)';
+    // $date_datetime = new DateTime($date_str);
+    // $formatted_date = $date_datetime->format("Y-m-d");
+    $formatted_date = sprintf("%04d-%02d-%02d", $year, $month, $day);
+
+    // テーブル格納用に時間帯を変更
+    $hour_int = intval($hour);
+    if ($hour_int >= 9 && $hour_int < 18) {
+        $t_column = 'T_' . ($hour_int - 8);
+    } else {
+        echo json_encode(["error" => "予約可能時間外です。"]);
+        exit;
+    }
+
+    $sql = "INSERT INTO T_reserve (date, {$t_column}) VALUES (:formatted_date, :user_id)";
 
     // パラメータセット
     $params = array(
-        ':user_id' => $user_id,
-        ':formatted_date' => $formatted_date
+        ':formatted_date' => $formatted_date,
+        ':user_id' => $user_id
     );
 
     try {

@@ -3,13 +3,19 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { CookiesProvider } from 'react-cookie';
+import { UserProvider } from './components/UserContext';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
   <React.StrictMode>
-    <App />
+    <CookiesProvider>
+      <UserProvider>
+        <App />
+      </UserProvider>
+    </CookiesProvider>
   </React.StrictMode>
 );
 
