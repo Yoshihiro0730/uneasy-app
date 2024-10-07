@@ -1,22 +1,11 @@
 import './App.css';
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useCookies } from 'react-cookie';
 import { styled } from '@mui/system';
-import { Fab } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import { Route, Routes } from 'react-router-dom';
 import Header from './components/Header';
 import LoginForm from './components/LoginForm';
 import { useUser } from './components/UserContext';
-import PostPage from './pages/Post';
-import HomeContent from './pages/Home';
-
-interface Post {
-  postId: number;
-  username: string;
-  content: string;
-  timestamp: string;
-}
+import HomeContent from './components/HomeContent';
 
 const AppContainer = styled('div')({
   display: 'flex',
@@ -37,57 +26,30 @@ const ContentContainer = styled('div')({
     bottom: 0,
     backgroundImage: 'url("/main_backgraound.jpg")',
     backgroundSize: 'cover',
-    backgroundPosition: 'center top -100px',  // 上部から100px下に移動
+    backgroundPosition: 'center top -100px',
     backgroundAttachment: 'fixed',
     zIndex: -1,
   }
 });
 
-const TweetButton = styled(Fab)({
-  position: 'fixed',
-  bottom: '20px',
-  right: '20px',
-});
-
-
 function App() {
-  const [isCookie, setIsCookie] = useState(false);
   const [cookie] = useCookies(["PHPSESSID"]);
   const { user } = useUser();
-  const handleLogin = (email: string, password: string) => {
-    console.log('ログインされたメールアドレス:', email, 'とパスワード:', password);
-  };
-
-
-  console.log(user);
-  // クッキー値が変更された時に監視
-  // useEffect(() => {
-  //   if(cookie.PHPSESSID && cookie.PHPSESSID !== "") {
-  //     setIsCookie(true);
-  //   } else {
-  //     setIsCookie(false);
-  //   }
-  // }, [cookie.PHPSESSID])
 
   return (
-      <AppContainer>
-        <Header />
-        <ContentContainer>
-          {/* <UserForm formType="regist" /> */}
-          {cookie.PHPSESSID && user ? (
-            <>
-              <p>こんにちは、{user?.displayName || 'ゲスト'}さん</p>
-              <Routes>
-                <Route path="/" element={<HomeContent />} />
-                <Route path="/post" element={<PostPage />} />
-              </Routes>
-            </>
-          ) : (
-            <LoginForm />
-          )
-          }
-         </ContentContainer>
-      </AppContainer>
+    <AppContainer>
+      <Header />
+      <ContentContainer>
+        {cookie.PHPSESSID && user ? (
+          <>
+            <p>こんにちは、{user?.displayName || 'ゲスト'}さん</p>
+            <HomeContent />
+          </>
+        ) : (
+          <LoginForm />
+        )}
+      </ContentContainer>
+    </AppContainer>
   );
 }
 
