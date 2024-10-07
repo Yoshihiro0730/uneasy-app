@@ -20,17 +20,14 @@ session_regenerate_id(true);
 $obj = new db_connect();
 
 if($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $first_name = $_POST['firstName'];
-    $last_name = $_POST['lastName'];
+    $user_name = $_POST['userName'];
     $email = $_POST['email'];
     $pw = $_POST['passWord'];
     $pw = password_hash($pw, PASSWORD_DEFAULT);
-    $sql = 'INSERT INTO T_USERS (first_name, last_name, email, upw) VALUES (:first_name, :last_name, :email, :pw)';
-
+    $sql = 'INSERT INTO T_USERS (user_name, email, upw) VALUES (:user_name, :email, :pw)';
     // パラメータセット
     $params = array(
-        ':first_name' => $first_name,
-        ':last_name' => $last_name,
+        ':user_name' => $user_name,
         ':email' => $email,
         ':pw' => $pw
     );
@@ -39,7 +36,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
         $result = $obj->insert($sql, $params);
         if(isset($result)){
             $_SESSION["user_id"] = $result;
-            $_SESSION["user_name"] = $first_name. "". $last_name;
+            $_SESSION["user_name"] = $user_name;
             $_SESSION["chk_ssid"] = session_id();
         }
         echo json_encode([

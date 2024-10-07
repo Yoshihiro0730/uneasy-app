@@ -6,8 +6,7 @@ import { useUser } from './UserContext';
 
 interface FormData {
     userId?: number;
-    firstName?: string;
-    lastName?: string;
+    userName?: string;
     email?: string;
     passWord?: string;
     displayName?: string;
@@ -35,8 +34,7 @@ const LoginForm = () => {
     const { login, logout } = useUser();
     const [userInfo, setUserInfo] = useState<FormData>(
         {
-            firstName: "",
-            lastName: "",
+            userName: "",
             email: "",
             passWord: ""
         }
@@ -92,12 +90,10 @@ const LoginForm = () => {
                 {withCredentials: true}
             )
             setUserInfo({
-                firstName: "",
-                lastName: "",
+                userName: "",
                 email: "",
                 passWord: ""
             });
-            // console.log(obj.data);
             setUserData({
                 userId: obj.data.user.id as number,
                 displayName: obj.data.user.name
@@ -120,7 +116,7 @@ const LoginForm = () => {
         Object.entries(loginData).forEach(([key, value]) => {
             formData.append(key,value);
         });
-
+        console.log("ユーザーデータ",loginData);
         try {
             const obj = await axios.post(
                 loginEndpoint,
@@ -131,7 +127,6 @@ const LoginForm = () => {
                 userId: undefined,
                 passWord:""
             });
-            // console.log(obj.data);
             setUserData({
                 userId: obj.data.user.id as number,
                 displayName: obj.data.user.name
@@ -152,7 +147,11 @@ const LoginForm = () => {
     }, [userData, login]);
 
     return (
-        <Container>
+        <Container sx={{
+            backgroundImage: `url('https://user0514.cdnw.net/shared/img/thumb/fujiko1122A0373_TP_V.jpg')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+        }}>
             {loginType ?
                 // ユーザー登録フォーム
                 <LoginCard>
@@ -161,20 +160,10 @@ const LoginForm = () => {
                         ユーザー登録
                     </Typography>
                     <TextField 
-                        id="first_name"
-                        name="firstName"
-                        value={userInfo.firstName} 
-                        label="性" 
-                        variant="outlined" 
-                        onChange={resistHandler}
-                        margin="normal" 
-                        fullWidth 
-                    />
-                    <TextField 
-                        id="last_name"
-                        name="lastName"
-                        value={userInfo.lastName} 
-                        label="名" 
+                        id="user_name"
+                        name="userName"
+                        value={userInfo.userName} 
+                        label="ユーザー名" 
                         variant="outlined" 
                         onChange={resistHandler}
                         margin="normal" 

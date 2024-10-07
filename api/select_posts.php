@@ -9,29 +9,31 @@ error_reporting(E_ALL);
 
 require_once 'db_connect.php';
 
-function func_select_id($first_name, $last_name, $email) {
-    //クラスの生成
-    $obj = new db_connect();
+//クラスの生成
+$obj = new db_connect();
+if($_SERVER['REQUEST_METHOD'] === 'GET') {
     $sql = 'SELECT 
-                user_id 
+                u.ID as user_id,
+                u.user_name,
+                p.ID as post_id,
+                p.posts,
+                p.created_at
             FROM 
-                T_users 
-            WHERE
-                first_name=:first_name
-            AND
-                last_name=:last_name
-            AND 
-                mail=:email
+                T_POSTS p
+            INNER JOIN
+                T_USERS u ON p.user_id = u.ID
+            WHERE 
+                p.resolve_flag = 0
+            ORDER BY
+                p.created_at DESC
+            LIMIT 10
             ';
     try{
-        $params = [':first_name' => $first_name, ':last_name' => $last_name, ':email' => $email];
+        $params = [];
         $result = $obj->select($sql, $params);
-        return $result;
+        echo json_encode($result);
     } catch(Exception $e){
         echo "データ検索に失敗しました。" . $e->getMessage();
     }
 }
-
-
-
 ?>
